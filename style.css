@@ -1,0 +1,491 @@
+/* ============================================================
+ * 胶片放映机 · 极简电影院风格
+ * ============================================================ */
+
+:root {
+  --bg-deep: #050403;
+  --gold-glow: rgba(240, 179, 94, 0.25);
+  --paper: #f5ead2;
+  --muted: #8d887d;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column; /* 视频区 + 底部专用控制区，上下分区不叠放 */
+  background: #000;
+  font-family:
+    "PingFang SC",
+    "Microsoft YaHei",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#theater {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* ============ 视频层（双缓冲） ============ */
+.film {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none; /* 彻底禁止用户与 video 直接交互，防止手机浏览器嗅探与手势冲突 */
+}
+
+.film.active {
+  opacity: 1;
+}
+
+/* 影院边缘暗角与微噪点 */
+#theater::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+}
+
+#theater::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 31;
+  pointer-events: none;
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="140" height="140"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="140" height="140" filter="url(%23n)" opacity="0.6"/%3E%3C/svg%3E');
+  opacity: 0.04;
+}
+
+/* ============ 入场遮罩 ============ */
+#startOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px calc(80px + env(safe-area-inset-bottom));
+  background: radial-gradient(
+    ellipse at center,
+    rgba(16, 15, 13, 0.88) 0%,
+    rgba(5, 4, 3, 0.98) 80%
+  );
+  backdrop-filter: blur(8px);
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#startOverlay.faded {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#startOverlay.hidden {
+  display: none;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ---------- 眉题 ---------- */
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 8px;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+
+/* ---------- 主标题 ---------- */
+.title {
+  margin: 6px 0;
+  font-family: Georgia, "Songti SC", "Noto Serif SC", "STSong", serif;
+  font-weight: 300;
+  font-size: clamp(2.6rem, 7.5vw, 4.2rem);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(240, 179, 94, 0.2);
+  animation: flicker 8s linear infinite;
+}
+
+/* ---------- 副标题 ---------- */
+.subtitle {
+  font-size: 13px;
+  letter-spacing: 6px;
+  text-indent: 6px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------- 开始按钮（极简毛玻璃质感） ---------- */
+#startBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 36px;
+  padding: 13px 36px 13px 26px;
+  font-family: inherit;
+  color: var(--paper);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.25s ease,
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+  animation: breathe 3.2s ease-in-out infinite;
+  touch-action: manipulation;
+  min-height: 48px;
+}
+
+#startBtn:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  #startBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 210, 130, 0.5);
+    box-shadow: 0 0 35px rgba(240, 179, 94, 0.25);
+    transform: translateY(-2px);
+  }
+}
+
+.btn-icon-svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.85;
+  color: #ffd282;
+}
+
+.btn-text {
+  font-size: 16px;
+  letter-spacing: 4px;
+  font-weight: 300;
+}
+
+/* ---------- 操作提示 ---------- */
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 90%;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 1px;
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+
+.hint:hover {
+  opacity: 0.85;
+}
+
+.hint-label {
+  color: #b0aa9e;
+}
+
+.hint kbd {
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd5c4;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.hint .dot {
+  opacity: 0.4;
+  margin: 0 2px;
+}
+
+/* ============ 底部专用控制区（独立于视频区域，不叠放） ============ */
+.controls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 12px 20px calc(14px + env(safe-area-inset-bottom));
+  background: #0a0908; /* 实底面板，与视频区上下分隔 */
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 40;
+}
+
+/* 开始放映前隐藏控制区 */
+.controls.hidden {
+  display: none;
+}
+
+/* 一体化毛玻璃胶囊 */
+.control-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(18, 16, 14, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* 胶囊内按键：纯图标圆形 */
+.ctl-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  touch-action: manipulation;
+}
+
+.ctl-btn .icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+@media (hover: hover) {
+  .ctl-btn:hover {
+    color: #ffd282;
+    background: rgba(255, 255, 255, 0.08);
+    transform: scale(1.08);
+  }
+}
+
+.ctl-btn:active {
+  transform: scale(0.92);
+}
+
+/* 音频按钮状态：播放 ↔ 静音图标切换 */
+.ctl-btn.audio .icon-mute {
+  display: none;
+}
+
+.ctl-btn.audio.off .icon-sound {
+  display: none;
+}
+
+.ctl-btn.audio.off .icon-mute {
+  display: block;
+  fill: rgba(255, 255, 255, 0.4);
+}
+
+.ctl-btn.audio.off {
+  opacity: 0.35;
+}
+
+/* 分隔竖线 */
+.ctl-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 边界状态：轮首禁用「上一个」 */
+.ctl-btn.disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============ 投影灯点亮光晕 ============ */
+#lampGlow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200vmax;
+  height: 200vmax;
+  transform: translate(-50%, -50%) scale(0);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 235, 190, 0.14) 0%,
+    rgba(255, 210, 140, 0.06) 30%,
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 5;
+  transition:
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.9s ease;
+  opacity: 0;
+}
+
+#lampGlow.on {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+#lampGlow.done {
+  transition: opacity 1.2s ease;
+  opacity: 0;
+}
+
+/* ============ 动画 ============ */
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 28px rgba(240, 179, 94, 0.12);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 46px rgba(240, 179, 94, 0.24);
+    border-color: rgba(255, 210, 130, 0.38);
+  }
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 0.85;
+  }
+  95% {
+    opacity: 1;
+  }
+  97% {
+    opacity: 0.9;
+  }
+  98% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #startBtn,
+  .title {
+    animation: none;
+  }
+}
+
+/* ============ 移动端适配 ============ */
+@media (max-width: 640px) {
+  .title {
+    font-size: clamp(2.1rem, 9.2vw, 3rem);
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 5px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    letter-spacing: 4px;
+    text-indent: 4px;
+  }
+
+  #startBtn {
+    margin-top: 30px;
+    padding: 11px 28px 11px 20px;
+  }
+
+  .btn-text {
+    font-size: 15px;
+    letter-spacing: 3px;
+  }
+
+  .hint {
+    position: static;
+    transform: none;
+    margin-top: 48px;
+    flex-wrap: wrap;
+    white-space: normal;
+    justify-content: center;
+    gap: 6px;
+    line-height: 2;
+  }
+
+  .controls {
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .control-capsule {
+    padding: 4px 10px;
+    gap: 4px;
+  }
+
+  .ctl-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ctl-btn .icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ============ 无 JavaScript 友好提示 ============ */
+.noscript-tip {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background: #000;
+  color: #e8e4d8;
+  font-size: 15px;
+  line-height: 1.9;
+  letter-spacing: 1px;
+}
