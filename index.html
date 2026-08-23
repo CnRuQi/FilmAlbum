@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#050403">
+  <meta name="theme-color" content="#0a0a0b">
   <title>胶片放映机 · FilmAlbum</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23000'/%3E%3Cpath d='M38 28v44l36-22z' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -35,14 +35,19 @@
     <!-- 入场遮罩：极简电影海报质感 -->
     <div id="startOverlay">
       <div class="intro">
+        <p class="eyebrow">Film Album · 私人放映</p>
         <h1 class="title">胶片放映机</h1>
 
         <button id="startBtn" type="button">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M8 5v14l11-7z"/>
+          <svg class="btn-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+            <polygon points="9,6.5 9,17.5 18,12" fill="currentColor"/>
           </svg>
           <span class="btn-text">开始放映</span>
         </button>
+
+        <p id="noMaterialTip" class="no-material-tip" hidden>
+          未检测到影片素材 · 请将视频放入 shucai/spN/ 后刷新
+        </p>
       </div>
 
       <p class="hint">
@@ -52,8 +57,12 @@
       </p>
     </div>
 
-    <!-- 投影灯点亮光晕 -->
-    <div id="lampGlow" aria-hidden="true"></div>
+    <!-- 胶片边缘码：当前放映的素材编号 -->
+    <div id="reelCode" class="reel-code" aria-hidden="true">
+      <span class="rc-label">Reel</span>
+      <span id="rcNum" class="rc-num">--</span>
+      <span id="rcTotal" class="rc-total">/ --</span>
+    </div>
 
   </main>
   <!-- 底部专用控制区：独立于视频区域，浏览器劫持视频时按钮仍可操作 -->
@@ -61,22 +70,30 @@
       <div class="control-capsule">
         <!-- 上一个 -->
         <button id="btnPrev" type="button" class="ctl-btn nav" aria-label="上一个" title="上一个 (←)">
-          <svg viewBox="0 0 24 24" class="icon"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+          <svg viewBox="0 0 24 24" class="icon"><polyline points="14,6.5 8.5,12 14,17.5"/></svg>
         </button>
 
         <span class="ctl-divider"></span>
 
         <!-- 背景音开关 -->
-        <button id="btnBgm" type="button" class="ctl-btn audio" aria-label="切换背景音" title="静音/播放 (M)">
-          <svg viewBox="0 0 24 24" class="icon icon-sound"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-          <svg viewBox="0 0 24 24" class="icon icon-mute"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        <button id="btnBgm" type="button" class="ctl-btn audio" aria-label="切换背景音" aria-pressed="true" title="静音/播放 (M)">
+          <svg viewBox="0 0 24 24" class="icon icon-sound">
+            <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
+            <path class="wave" d="M15 9a4.2 4.2 0 0 1 0 6"/>
+            <path class="wave wave-outer" d="M17.5 7a7.5 7.5 0 0 1 0 10"/>
+          </svg>
+          <svg viewBox="0 0 24 24" class="icon icon-mute">
+            <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
+            <line x1="15.5" y1="9.5" x2="20.5" y2="14.5"/>
+            <line x1="20.5" y1="9.5" x2="15.5" y2="14.5"/>
+          </svg>
         </button>
 
         <span class="ctl-divider"></span>
 
         <!-- 下一个 -->
         <button id="btnNext" type="button" class="ctl-btn nav" aria-label="下一个" title="下一个 (→)">
-          <svg viewBox="0 0 24 24" class="icon"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          <svg viewBox="0 0 24 24" class="icon"><polyline points="10,6.5 15.5,12 10,17.5"/></svg>
         </button>
       </div>
     </div>
@@ -89,7 +106,7 @@
     </div>
   </noscript>
 
-  <audio id="bgm" src="shucai/maybe.mp3" loop preload="auto"></audio>
+  <audio id="bgm" src="shucai/bgm.mp3" loop preload="auto"></audio>
 
   <script src="script.js"></script>
 </body>
