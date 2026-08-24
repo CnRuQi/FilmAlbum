@@ -10,7 +10,7 @@
   --line: rgba(255, 255, 255, 0.08);
   --text-hi: rgba(255, 255, 255, 0.92);
   --text-mid: rgba(255, 255, 255, 0.45);
-  --text-low: rgba(255, 255, 255, 0.3);
+  --text-low: rgba(255, 255, 255, 0.45); /* 对齐 WCAG AA ≥4.5:1（原 0.3 对比度不足） */
 }
 
 * {
@@ -188,6 +188,19 @@ body {
   }
 }
 
+/* 素材探测中的加载态 */
+#startBtn.loading {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+@media (hover: hover) {
+  #startBtn.loading:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
 /* 「暂无影片」提示 */
 .no-material-tip {
   margin-top: -4px;
@@ -210,11 +223,12 @@ body {
   color: var(--text-low);
   font-size: 12px;
   letter-spacing: 1px;
+  opacity: 0.55; /* 常态低透明度，悬停提亮（原逻辑写反已修复） */
   transition: opacity 0.3s ease;
 }
 
 .hint:hover {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .hint-label {
@@ -258,8 +272,9 @@ body {
   gap: 8px;
 }
 
-/* 图标按键：极简圆形热区 */
+/* 图标按键：极简圆形热区（伪元素外扩命中区，移动端凑足 44px） */
 .ctl-btn {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -298,6 +313,13 @@ body {
   transform: scale(0.92);
 }
 
+/* 扩大触控热区而不放大视觉尺寸（38px + 6px = 44px） */
+.ctl-btn::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}
+
 /* 音频按钮状态：播放 ↔ 静音图标切换 */
 .ctl-btn.audio .icon-mute {
   display: none;
@@ -323,7 +345,8 @@ body {
 }
 
 /* 边界状态：轮首禁用「上一个」/ 全部失效 / BGM 缺失 */
-.ctl-btn.disabled {
+.ctl-btn.disabled,
+.ctl-btn:disabled {
   opacity: 0.22;
   cursor: not-allowed;
   pointer-events: none;
@@ -383,20 +406,18 @@ body {
   }
 }
 
-@media (max-width: 640px) {
-  .reel-code {
-    top: calc(14px + env(safe-area-inset-top));
-    left: 16px;
-    gap: 6px;
-  }
-
-  .rc-num {
-    font-size: 13px;
-  }
-
-  .rc-total {
-    font-size: 11px;
-  }
+/* 「全部素材失效」提示（覆盖画面中央） */
+.dead-tip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 36;
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  color: var(--text-mid);
 }
 
 /* ============ 键盘焦点可见性（质量底线） ============ */
@@ -424,6 +445,20 @@ body {
 
 /* ============ 移动端适配 ============ */
 @media (max-width: 640px) {
+  .reel-code {
+    top: calc(14px + env(safe-area-inset-top));
+    left: 16px;
+    gap: 6px;
+  }
+
+  .rc-num {
+    font-size: 13px;
+  }
+
+  .rc-total {
+    font-size: 11px;
+  }
+
   .title {
     font-size: clamp(2rem, 8.5vw, 2.8rem);
     letter-spacing: 0.12em;

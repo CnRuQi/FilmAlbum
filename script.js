@@ -4,7 +4,8 @@
  *  - 30fps 固定，暂停点 = 2 秒 22 帧 = 第 82 帧 ≈ 2.7333s
  *  - 素材总数自动探测：指数扩张 + 二分查找（HEAD，降级 GET+Range）
  *  - 坏格黑名单：404 / 解码失败 / 加载超时 → 静默拉黑并跳过
- *  - 伪随机播放：Fisher-Yates 洗牌，一轮 N 格不重复，跨轮预生成
+ *  - 伪随机播放：Fisher-Yates 洗牌，一轮 N 格不重复，跨轮预生成且防相邻重复
+ *  - 「上一格」基于播放历史栈真实回退（可跨轮），自动跳过已拉黑格子
  *  - 双缓冲 <video> 无缝切换 + 跨轮预缓存
  *  - 连续切换队列 + PRESS_GAP 松手判定
  * ============================================================ */
@@ -42,6 +43,7 @@
   const reelCode = document.getElementById("reelCode");
   const rcNum = document.getElementById("rcNum");
   const rcTotal = document.getElementById("rcTotal");
+  const allDeadTip = document.getElementById("allDeadTip");
 
   /* ---------- 状态 ---------- */
   let state = State.BOOT;
@@ -60,6 +62,11 @@
   /* ---------- 工具 ---------- */
   const videoUrl = (idx) => `shucai/sp${idx}/s${idx}.mp4`;
 
+  /** 统一吞掉 Promise 拒绝（如自动播放策略拦截），避免未处理 rejection */
+  function swallow(p) {
+    if (p && p.catch) p.catch(() => {});
+  }
+
   const activeVideo = () =>
     videoA.classList.contains("active") ? videoA : videoB;
   const inactiveVideo = () =>
@@ -73,7 +80,8 @@
   }
 
   /* ---------- 胶片边缘码计数器 ---------- */
-  const pad2 = (n) => String(n).padStart(2, "0");
+  let padW = 2; // 补零位数：随素材总数动态增长（>99 格时不至于错位）
+  const pad2 = (n) => String(n).padStart(padW, "0");
 
   function updateReelCode(idx) {
     if (!reelCode) return;
@@ -146,7 +154,9 @@
   }
 
   const detectPromise = detectSpCount();
+  let detectDone = false; // 探测是否已完成（决定开始按钮是否需要加载反馈）
   detectPromise.then((n) => {
+    detectDone = true;
     if (n === 0) showNoMaterial(); // 探测完成即提示，无需等点击
   });
 
@@ -162,6 +172,7 @@
   let round = []; // 当前轮次（好格洗牌）
   let roundPos = -1; // 当前在轮次中的位置
   let nextRound = null; // 提前生成下一轮
+  const history = []; // 已播放素材栈：「上一格」据此真实回退（可跨轮）
 
   const anyGoodLeft = () => NUMBERS.some((n) => !badSet.has(n));
 
@@ -173,8 +184,14 @@
     return arr;
   }
 
-  function newRound() {
-    return shuffle(NUMBERS.filter((n) => !badSet.has(n)));
+  /** 洗牌生成一轮好格；avoidLast = 上一轮末尾编号，用于避免跨轮相邻重复 */
+  function newRound(avoidLast) {
+    const arr = shuffle(NUMBERS.filter((n) => !badSet.has(n)));
+    if (arr.length > 1 && avoidLast != null && arr[0] === avoidLast) {
+      const j = 1 + Math.floor(Math.random() * (arr.length - 1));
+      [arr[0], arr[j]] = [arr[j], arr[0]]; // 随机换一位到队首，消除相邻重复
+    }
+    return arr;
   }
 
   function ensureRound() {
@@ -188,7 +205,9 @@
   function peekAt(offset) {
     const seq = [];
     for (let p = roundPos + 1; p < round.length; p++) seq.push(round[p]);
-    if (!nextRound) nextRound = newRound();
+    if (!nextRound) {
+      nextRound = newRound(round.length ? round[round.length - 1] : null);
+    }
     for (let p = 0; p < nextRound.length; p++) seq.push(nextRound[p]);
     const good = seq.filter((n) => !badSet.has(n));
     return good[offset - 1] ?? null;
@@ -197,25 +216,31 @@
   const peekNext = () => peekAt(1);
   const peekNext2 = () => peekAt(2);
 
-  /** 回退方向的好格；到轮首则与原逻辑一致回退为前进候选 */
-  function peekPrev() {
-    for (let p = roundPos - 1; p >= 0; p--) {
-      if (!badSet.has(round[p])) return round[p];
+  /** 历史栈中从栈顶数第 offset 个好格（跳过后来被拉黑的记录，不弹出） */
+  function historyPeek(offset) {
+    let seen = 0;
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (!badSet.has(history[i]) && ++seen === offset) return history[i];
     }
-    return peekNext();
+    return null;
   }
 
-  function peekPrev2() {
-    let seen = 0;
-    for (let p = roundPos - 1; p >= 0; p--) {
-      if (!badSet.has(round[p])) {
-        seen++;
-        if (seen === 2) return round[p];
-      }
+  /** 弹出栈顶最近的好格（顺带丢弃途中已拉黑的记录） */
+  function historyPop() {
+    while (history.length) {
+      const n = history.pop();
+      if (!badSet.has(n)) return n;
     }
-    if (seen === 1) return peekNext();
-    return peekNext2();
+    return null;
   }
+
+  /** 当前格入栈，供「上一格」回退（前进切换前调用） */
+  function pushHistory() {
+    if (activeIdx) history.push(activeIdx);
+  }
+
+  const peekPrev = () => historyPeek(1);
+  const peekPrev2 = () => historyPeek(2);
 
   /** 前进到下一个好格（消费游标），全部失效返回 null */
   function advance() {
@@ -224,22 +249,15 @@
       if (roundPos + 1 < round.length) {
         roundPos++;
       } else {
-        round = nextRound || newRound();
+        round =
+          nextRound ||
+          newRound(round.length ? round[round.length - 1] : null);
         nextRound = null;
         roundPos = 0;
       }
       if (--guard <= 0) return null;
     } while (badSet.has(round[roundPos]));
     return round[roundPos];
-  }
-
-  /** 回退到上一个好格；无可用回退返回 null */
-  function retreat() {
-    while (roundPos > 0) {
-      roundPos--;
-      if (!badSet.has(round[roundPos])) return round[roundPos];
-    }
-    return null;
   }
 
   /* ---------- 帧级追踪（目标 82 帧） ---------- */
@@ -279,6 +297,7 @@
     if (state === State.INSERT) {
       disarmLoadGuard();
       v.pause();
+      v.muted = true; // 兜底：个别内核（如 X5）pause 后声轨可能仍继续输出
       state = State.PAUSED;
       preloadNext();
     }
@@ -344,8 +363,9 @@
       } catch (e) {}
       v.onended = null;
     });
-    btnPrev.classList.add("disabled");
-    btnNext.classList.add("disabled");
+    setDisabled(btnPrev, true);
+    setDisabled(btnNext, true);
+    if (allDeadTip) allDeadTip.hidden = false; // 明确告知素材已全部失效，而非静默黑屏
   }
 
   /* ---------- 媒体错误 → 静默跳过 ---------- */
@@ -380,20 +400,23 @@
     if (v.getAttribute("src") !== url) {
       v.pause();
       v.src = url;
+    } else if (v.ended) {
+      // 上次播放已到结尾：部分内核直接重播会无声，强制重新加载
+      v.pause();
+      v.removeAttribute("src");
+      v.load();
+      v.src = url;
     }
     v.currentTime = from82 ? TARGET_SEC : 0;
     armLoadGuard(idx);
 
-    const playP = v.play();
-    if (playP && playP.catch) pulseNoop(playP);
+    v.muted = false; // 解除冻结时的静音兜底，恢复声轨
+    v.volume = 1;
+    swallow(v.play());
 
     if (!from82) {
       trackToTarget(v, token);
     }
-  }
-
-  function pulseNoop(p) {
-    p.catch(() => {});
   }
 
   function handleEnded(v) {
@@ -431,7 +454,7 @@
 
     let targetIdx;
     if (dir < 0) {
-      targetIdx = retreat();
+      targetIdx = historyPop(); // 真实回退：弹出上一格（可跨轮）
       if (targetIdx === null) {
         pending.length = 0;
         const v = activeVideo();
@@ -441,6 +464,7 @@
         return;
       }
     } else {
+      pushHistory(); // 当前格入栈，供之后「上一格」回退
       targetIdx = advance();
       if (targetIdx == null) {
         haltAllDead();
@@ -482,16 +506,15 @@
         return;
       }
       state = State.RESUME;
-      const p = v.play();
-      if (p && p.catch) p.catch(() => {});
+      v.muted = false; // 解除冻结静音，拔片声恢复正常
+      swallow(v.play());
       return;
     }
 
     if (state === State.INSERT) {
       state = State.RESUME;
       v.currentTime = TARGET_SEC;
-      const p = v.play();
-      if (p && p.catch) p.catch(() => {});
+      swallow(v.play());
       return;
     }
   }
@@ -504,20 +527,33 @@
     if (started || booting) return;
     booting = true;
 
+    // 探测未完成时给出轻量加载反馈，避免点击后无响应感
+    if (!detectDone && !startBtn.disabled) {
+      startBtn.disabled = true;
+      startBtn.classList.add("loading");
+      const loadingLabel = startBtn.querySelector(".btn-text");
+      if (loadingLabel) loadingLabel.textContent = "加载中…";
+    }
+
     const count = await detectPromise;
+
+    startBtn.classList.remove("loading");
+    const label = startBtn.querySelector(".btn-text");
     if (count === 0) {
       booting = false;
-      showNoMaterial();
+      showNoMaterial(); // 恢复/保持「暂无影片」态
       return;
     }
+    if (label) label.textContent = "开始放映";
+    startBtn.disabled = false;
     SP_COUNT = count;
     NUMBERS = Array.from({ length: SP_COUNT }, (_, i) => i + 1);
+    padW = Math.max(2, String(SP_COUNT).length); // 边缘码补零位数对齐总数
     started = true;
 
-    // 开启背景音乐
+    // 开启背景音乐（已恢复的静音偏好保持生效）
     bgm.volume = 0.75;
-    const p = bgm.play();
-    if (p && p.catch) p.catch(() => {});
+    swallow(bgm.play());
 
     overlay.classList.add("faded");
     setTimeout(() => overlay.classList.add("hidden"), 800);
@@ -559,21 +595,37 @@
     goNext();
   });
 
-  /* ---------- 背景音开关（按钮与 M 键共用） ---------- */
+  /* ---------- 背景音开关（按钮与 M 键共用；图标由 play/pause 事件驱动） ---------- */
+  const BGM_MUTED_KEY = "filmalbum.bgm-muted"; // 记忆用户静音偏好
+
+  /** 以「实际是否出声」为准同步喇叭图标（自动播放被拦截时不会假亮） */
+  function syncBgmIcon() {
+    const audible = !bgm.muted && !bgm.paused;
+    btnBgm.classList.toggle("off", !audible);
+    btnBgm.setAttribute("aria-pressed", String(audible));
+  }
+
   function toggleBgm() {
     if (btnBgm.classList.contains("disabled")) return; // BGM 文件缺失
     bgm.muted = !bgm.muted;
-    if (!bgm.muted && bgm.paused) {
-      const playBgm = bgm.play();
-      if (playBgm && playBgm.catch) playBgm.catch(() => {});
-    }
-    btnBgm.classList.toggle("off", bgm.muted);
-    btnBgm.setAttribute("aria-pressed", String(!bgm.muted));
+    if (!bgm.muted && bgm.paused) swallow(bgm.play());
+    try {
+      localStorage.setItem(BGM_MUTED_KEY, bgm.muted ? "1" : "0");
+    } catch (e) {}
+    syncBgmIcon();
   }
 
   bgm.addEventListener("error", () => {
-    btnBgm.classList.add("disabled"); // BGM 文件缺失：禁用开关
+    setDisabled(btnBgm, true); // BGM 文件缺失：禁用开关
   });
+  bgm.addEventListener("play", syncBgmIcon);
+  bgm.addEventListener("pause", syncBgmIcon);
+
+  // 恢复上次会话的静音偏好
+  try {
+    if (localStorage.getItem(BGM_MUTED_KEY) === "1") bgm.muted = true;
+  } catch (e) {}
+  syncBgmIcon();
 
   /* ---------- 底部控制按钮 ---------- */
   btnPrev.addEventListener("click", (e) => {
@@ -589,14 +641,24 @@
     toggleBgm();
   });
 
-  /* ---------- 边界状态：轮首禁用「上一个」 ---------- */
-  function syncControlState() {
-    btnPrev.classList.toggle("disabled", roundPos <= 0);
+  /* ---------- 边界状态：无历史可回退时禁用「上一个」 ---------- */
+  /** 真实 disabled 属性 + 样式类同步：屏幕阅读器可感知、不可聚焦、不触发点击 */
+  function setDisabled(btn, dis) {
+    btn.classList.toggle("disabled", dis);
+    btn.disabled = dis;
   }
 
-  // 键盘快捷键
+  function syncControlState() {
+    setDisabled(btnPrev, history.length === 0);
+  }
+
+  // 键盘快捷键（带修饰键的组合留给浏览器，如 Alt+←/→ 前进后退）
   window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
     if (e.code === "Space") {
+      // 未开演或焦点在「开始放映」上时不劫持空格，保留其原生按钮激活行为
+      if (!started || document.activeElement === startBtn) return;
       e.preventDefault();
       goNext();
       return;

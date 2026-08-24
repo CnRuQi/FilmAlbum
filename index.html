@@ -19,7 +19,7 @@
            x5-playsinline="true"
            x5-video-player-type="h5-page"
            x5-video-player-fullscreen="false"
-           controlslist="nodownload nofullscreen noremoteplayback"
+           controlsList="nodownload nofullscreen noremoteplayback"
            disablepictureinpicture
            preload="auto"></video>
     <video id="videoB" class="film"
@@ -28,7 +28,7 @@
            x5-playsinline="true"
            x5-video-player-type="h5-page"
            x5-video-player-fullscreen="false"
-           controlslist="nodownload nofullscreen noremoteplayback"
+           controlsList="nodownload nofullscreen noremoteplayback"
            disablepictureinpicture
            preload="auto"></video>
 
@@ -64,40 +64,42 @@
       <span id="rcTotal" class="rc-total">/ --</span>
     </div>
 
+    <!-- 全部素材失效兜底提示 -->
+    <p id="allDeadTip" class="dead-tip" hidden>影片素材已全部失效 · 请检查 shucai/ 目录后刷新</p>
+
   </main>
   <!-- 底部专用控制区：独立于视频区域，浏览器劫持视频时按钮仍可操作 -->
-    <div id="controls" class="controls hidden">
-      <div class="control-capsule">
-        <!-- 上一个 -->
-        <button id="btnPrev" type="button" class="ctl-btn nav" aria-label="上一个" title="上一个 (←)">
-          <svg viewBox="0 0 24 24" class="icon"><polyline points="14,6.5 8.5,12 14,17.5"/></svg>
-        </button>
+  <div id="controls" class="controls hidden">
+    <div class="control-capsule">
+      <!-- 上一个 -->
+      <button id="btnPrev" type="button" class="ctl-btn nav" aria-label="上一个" title="上一个 (←)">
+        <svg viewBox="0 0 24 24" class="icon"><polyline points="14,6.5 8.5,12 14,17.5"/></svg>
+      </button>
 
-        <span class="ctl-divider"></span>
+      <span class="ctl-divider"></span>
 
-        <!-- 背景音开关 -->
-        <button id="btnBgm" type="button" class="ctl-btn audio" aria-label="切换背景音" aria-pressed="true" title="静音/播放 (M)">
-          <svg viewBox="0 0 24 24" class="icon icon-sound">
-            <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
-            <path class="wave" d="M15 9a4.2 4.2 0 0 1 0 6"/>
-            <path class="wave wave-outer" d="M17.5 7a7.5 7.5 0 0 1 0 10"/>
-          </svg>
-          <svg viewBox="0 0 24 24" class="icon icon-mute">
-            <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
-            <line x1="15.5" y1="9.5" x2="20.5" y2="14.5"/>
-            <line x1="20.5" y1="9.5" x2="15.5" y2="14.5"/>
-          </svg>
-        </button>
+      <!-- 背景音开关 -->
+      <button id="btnBgm" type="button" class="ctl-btn audio" aria-label="切换背景音" aria-pressed="true" title="静音/播放 (M)">
+        <svg viewBox="0 0 24 24" class="icon icon-sound">
+          <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
+          <path class="wave" d="M15 9a4.2 4.2 0 0 1 0 6"/>
+          <path class="wave wave-outer" d="M17.5 7a7.5 7.5 0 0 1 0 10"/>
+        </svg>
+        <svg viewBox="0 0 24 24" class="icon icon-mute">
+          <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
+          <line x1="15.5" y1="9.5" x2="20.5" y2="14.5"/>
+          <line x1="20.5" y1="9.5" x2="15.5" y2="14.5"/>
+        </svg>
+      </button>
 
-        <span class="ctl-divider"></span>
+      <span class="ctl-divider"></span>
 
-        <!-- 下一个 -->
-        <button id="btnNext" type="button" class="ctl-btn nav" aria-label="下一个" title="下一个 (→)">
-          <svg viewBox="0 0 24 24" class="icon"><polyline points="10,6.5 15.5,12 10,17.5"/></svg>
-        </button>
-      </div>
+      <!-- 下一个 -->
+      <button id="btnNext" type="button" class="ctl-btn nav" aria-label="下一个" title="下一个 (→)">
+        <svg viewBox="0 0 24 24" class="icon"><polyline points="10,6.5 15.5,12 10,17.5"/></svg>
+      </button>
     </div>
-
+  </div>
 
   <noscript>
     <div class="noscript-tip">
