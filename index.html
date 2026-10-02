@@ -4,15 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0a0a0b">
-  <title>胶片放映机 · FilmAlbum</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23000'/%3E%3Cpath d='M38 28v44l36-22z' fill='%23fff'/%3E%3C/svg%3E">
+  <title>私人放映 · FilmAlbum</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230A0A0B'/%3E%3Crect x='20' y='30' width='56' height='40' rx='3' fill='%23F5F0E4'/%3E%3Crect x='20' y='30' width='8' height='40' fill='%23B03A2E'/%3E%3Ccircle cx='72' cy='38' r='2.6' fill='%230A0A0B'/%3E%3Ccircle cx='72' cy='50' r='2.6' fill='%230A0A0B'/%3E%3Ccircle cx='72' cy='62' r='2.6' fill='%230A0A0B'/%3E%3Crect x='34' y='42' width='24' height='3' rx='1.5' fill='%233A3A3D'/%3E%3Crect x='34' y='50' width='18' height='3' rx='1.5' fill='%23C9924A'/%3E%3Crect x='34' y='58' width='22' height='3' rx='1.5' fill='%233A3A3D' opacity='.6'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <main id="theater">
     <!-- 双缓冲视频层：始终只有一个显示，另一个用作预缓存无缝切换 -->
-    <!-- 防劫持：playsinline 系 + X5 同层渲染 + 隐藏控件/PiP（视频自带音轨，不静音） -->
+    <!-- 属性组为移动端内核兼容层（X5 同层渲染 / 内联播放 / 禁 PiP），逻辑零依赖不动 -->
     <video id="videoA" class="film active"
            playsinline
            webkit-playsinline="true"
@@ -32,22 +33,26 @@
            disablepictureinpicture
            preload="auto"></video>
 
-    <!-- 入场遮罩：极简电影海报质感 -->
+    <!-- 检票口：撕下副券即开演 -->
     <div id="startOverlay">
-      <div class="intro">
-        <p class="eyebrow">Film Album · 私人放映</p>
-        <h1 class="title">胶片放映机</h1>
+      <div class="beam" aria-hidden="true"><i class="beam-window"></i></div>
 
-        <button id="startBtn" type="button">
-          <svg class="btn-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
-            <polygon points="9,6.5 9,17.5 18,12" fill="currentColor"/>
-          </svg>
-          <span class="btn-text">开始放映</span>
-        </button>
+      <div class="ticket">
+        <div class="ticket-main">
+          <p class="eyebrow">Film Album · 私人放映</p>
+          <h1 class="title">胶片放映机</h1>
+          <p class="seat-line">ROW 01 · SEAT 21 · 21 ROLLS</p>
+        </div>
 
-        <p id="noMaterialTip" class="no-material-tip" hidden>
-          未检测到影片素材 · 请将视频放入 shucai/spN/ 后刷新
-        </p>
+        <div class="stub">
+          <button id="startBtn" type="button">
+            <span class="btn-text">开始放映</span>
+            <span class="btn-sub">ADMIT ONE</span>
+          </button>
+          <p id="noMaterialTip" class="no-material-tip" hidden>
+            未检测到影片素材 · 请将视频放入 shucai/spN/ 后刷新
+          </p>
+        </div>
       </div>
 
       <p class="hint">
@@ -57,9 +62,9 @@
       </p>
     </div>
 
-    <!-- 胶片边缘码：当前放映的素材编号 -->
+    <!-- 票号牌：当前场次编号 -->
     <div id="reelCode" class="reel-code" aria-hidden="true">
-      <span class="rc-label">Reel</span>
+      <span class="rc-label">NO.</span>
       <span id="rcNum" class="rc-num">--</span>
       <span id="rcTotal" class="rc-total">/ --</span>
     </div>
@@ -68,42 +73,26 @@
     <p id="allDeadTip" class="dead-tip" hidden>影片素材已全部失效 · 请检查 shucai/ 目录后刷新</p>
 
   </main>
-  <!-- 底部专用控制区：独立于视频区域，浏览器劫持视频时按钮仍可操作 -->
+
+  <!-- 底部检票台：独立于视频区域，浏览器劫持视频时按钮仍可操作 -->
   <div id="controls" class="controls hidden">
-    <div class="control-capsule">
-      <!-- 上一个 -->
-      <button id="btnPrev" type="button" class="ctl-btn nav" aria-label="上一个" title="上一个 (←)">
-        <svg viewBox="0 0 24 24" class="icon"><polyline points="14,6.5 8.5,12 14,17.5"/></svg>
-      </button>
+    <button id="btnPrev" type="button" class="ctl-btn" aria-label="上一个" title="上一个 (←)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="14,6.5 8.5,12 14,17.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
 
-      <span class="ctl-divider"></span>
+    <!-- 背景音开关：morph-icon spring 形变（volume-2 ↔ volume-x），图标由 JS 按实际出声态驱动 -->
+    <button id="btnBgm" type="button" class="ctl-btn" aria-label="切换背景音" aria-pressed="true" title="静音/播放 (M)">
+      <morph-icon class="icon-morph" icon="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298zM16 9a5 5 0 0 1 0 6M19.364 18.364a9 9 0 0 0 0-12.728" size="19" stroke-width="1.8" reduced-motion="user"></morph-icon>
+    </button>
 
-      <!-- 背景音开关 -->
-      <button id="btnBgm" type="button" class="ctl-btn audio" aria-label="切换背景音" aria-pressed="true" title="静音/播放 (M)">
-        <svg viewBox="0 0 24 24" class="icon icon-sound">
-          <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
-          <path class="wave" d="M15 9a4.2 4.2 0 0 1 0 6"/>
-          <path class="wave wave-outer" d="M17.5 7a7.5 7.5 0 0 1 0 10"/>
-        </svg>
-        <svg viewBox="0 0 24 24" class="icon icon-mute">
-          <polygon points="11,5.5 6.5,9.5 3.5,9.5 3.5,14.5 6.5,14.5 11,18.5"/>
-          <line x1="15.5" y1="9.5" x2="20.5" y2="14.5"/>
-          <line x1="20.5" y1="9.5" x2="15.5" y2="14.5"/>
-        </svg>
-      </button>
-
-      <span class="ctl-divider"></span>
-
-      <!-- 下一个 -->
-      <button id="btnNext" type="button" class="ctl-btn nav" aria-label="下一个" title="下一个 (→)">
-        <svg viewBox="0 0 24 24" class="icon"><polyline points="10,6.5 15.5,12 10,17.5"/></svg>
-      </button>
-    </div>
+    <button id="btnNext" type="button" class="ctl-btn" aria-label="下一个" title="下一个 (→)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="10,6.5 15.5,12 10,17.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 
   <noscript>
     <div class="noscript-tip">
-      <p>本页「胶片放映机」需要 JavaScript 才能正常播放与切换影片。</p>
+      <p>本页「私人放映」需要 JavaScript 才能检票入场与切换影片。</p>
       <p>请前往浏览器设置中启用 JavaScript 后重新加载页面。</p>
     </div>
   </noscript>
@@ -111,5 +100,10 @@
   <audio id="bgm" src="shucai/bgm.mp3" loop preload="auto"></audio>
 
   <script src="script.js"></script>
+  <script type="module">
+    // Morphicons（MIT, ~7KB gzip）：定义 <morph-icon> 自定义元素驱动图标 spring 形变
+    import { defineMorphIcon } from "./vendor/morphicons/element.js";
+    defineMorphIcon();
+  </script>
 </body>
 </html>

@@ -1,0 +1,37 @@
+/* ============================================================
+ * FilmAlbum tokens · 影院暗场
+ * ------------------------------------------------------------
+ * 与全站六站设计基线同构：paper/ink/muted/rule/accent 语义层
+ * + 统一动效五件套（ease/dur 档位 120·220·420）
+ * 暗色体系：paper 即深底，ink 为浅色文字
+ * ============================================================ */
+
+:root {
+  /* 色板（暗色） */
+  --color-paper: #0a0a0b;
+  --color-theater: #000;
+  --color-ink: rgba(255, 255, 255, 0.92);
+  --color-muted: rgba(255, 255, 255, 0.45); /* 对齐 WCAG AA ≥4.5:1 */
+  --color-rule: rgba(255, 255, 255, 0.08);
+  --color-accent: #ffffff; /* 白色高对比 CTA */
+
+  /* 字体（全站统一系统栈） */
+  --font-body: system-ui, -apple-system, "PingFang SC", "MiSans",
+    "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* 动效五件套（全站统一档位） */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  /* 旧变量别名（style.css 历史引用兼容层） */
+  --bg: var(--color-paper);
+  --line: var(--color-rule);
+  --text-hi: var(--color-ink);
+  --text-mid: var(--color-muted);
+  --text-low: var(--color-muted);
+}
